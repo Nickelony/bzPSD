@@ -113,7 +113,7 @@ namespace bzPSD
                 {
                     int pos = rowIndex + x;
 
-                    Color pixelColor = Color.FromArgb(mask.ImageData[pos], mask.ImageData[pos], mask.ImageData[pos]);
+                    Color pixelColor = Color.FromRgb(mask.ImageData[pos], mask.ImageData[pos], mask.ImageData[pos]);
 
                     lock (bitmap)
                     {
@@ -156,7 +156,7 @@ namespace bzPSD
                     break;
                 case ColorMode.Indexed:
                     int index = red;
-                    c = Color.FromArgb(psdFile.ColorModeData[index], psdFile.ColorModeData[index + 256], psdFile.ColorModeData[index + 2 * 256]);
+                    c = Color.FromRgb(psdFile.ColorModeData[index], psdFile.ColorModeData[index + 256], psdFile.ColorModeData[index + 2 * 256]);
                     break;
                 case ColorMode.Lab:
                     c = LabToRGB(red, green, blue);
@@ -173,7 +173,7 @@ namespace bzPSD
             switch (layer.PsdFile.ColorMode)
             {
                 case ColorMode.RGB:
-                    c = Color.FromArgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[1].ImageData[pos], layer.SortedChannels[2].ImageData[pos]);
+                    c = Color.FromRgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[1].ImageData[pos], layer.SortedChannels[2].ImageData[pos]);
                     break;
                 case ColorMode.CMYK:
                     c = CMYKToRGB(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[1].ImageData[pos], layer.SortedChannels[2].ImageData[pos], layer.SortedChannels[3].ImageData[pos]);
@@ -183,12 +183,12 @@ namespace bzPSD
                     break;
                 case ColorMode.Grayscale:
                 case ColorMode.Duotone:
-                    c = Color.FromArgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos]);
+                    c = Color.FromRgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos]);
                     break;
                 case ColorMode.Indexed:
                     {
                         int index = layer.SortedChannels[0].ImageData[pos];
-                        c = Color.FromArgb(layer.PsdFile.ColorModeData[index], layer.PsdFile.ColorModeData[index + 256], layer.PsdFile.ColorModeData[index + 2 * 256]);
+                        c = Color.FromRgb(layer.PsdFile.ColorModeData[index], layer.PsdFile.ColorModeData[index + 256], layer.PsdFile.ColorModeData[index + 2 * 256]);
                     }
                     break;
                 case ColorMode.Lab:
@@ -293,7 +293,7 @@ namespace bzPSD
             nBlue = nBlue > 0 ? nBlue : 0;
             nBlue = nBlue < 255 ? nBlue : 255;
 
-            return Color.FromArgb(nRed, nGreen, nBlue);
+            return Color.FromRgb((byte)nRed, (byte)nGreen, (byte)nBlue);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -336,7 +336,7 @@ namespace bzPSD
             nBlue = nBlue > 0 ? nBlue : 0;
             nBlue = nBlue < 255 ? nBlue : 255;
 
-            return Color.FromArgb(nRed, nGreen, nBlue);
+            return Color.FromRgb((byte)nRed, (byte)nGreen, (byte)nBlue);
         }
     }
 }
