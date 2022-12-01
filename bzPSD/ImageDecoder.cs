@@ -27,10 +27,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #endregion
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
+using SixLabors.ImageSharp;
 using System.Drawing.PSD;
+using System.Numerics;
 using System.Threading.Tasks;
+using Bitmap = SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Argb32>;
 
 namespace bzPSD
 {
@@ -38,7 +39,7 @@ namespace bzPSD
     {
         public static Bitmap DecodeImage(PsdFile psdFile)
         {
-            var bitmap = new Bitmap(psdFile.Columns, psdFile.Rows, PixelFormat.Format32bppArgb);
+            var bitmap = new Bitmap(psdFile.Columns, psdFile.Rows);
 
             //Parallel load each row
             Parallel.For(0, psdFile.Rows, y =>
@@ -53,7 +54,7 @@ namespace bzPSD
 
                                                   lock (bitmap)
                                                   {
-                                                      bitmap.SetPixel(x, y, pixelColor);
+                                                      bitmap[x, y] = pixelColor;
                                                   }
                                               }
                                           });
@@ -65,7 +66,7 @@ namespace bzPSD
         {
             if (layer.Rect.Width == 0 || layer.Rect.Height == 0) return null;
 
-            var bitmap = new Bitmap(layer.Rect.Width, layer.Rect.Height, PixelFormat.Format32bppArgb);
+            var bitmap = new Bitmap(layer.Rect.Width, layer.Rect.Height);
 
             Parallel.For(0, layer.Rect.Height, y =>
             {
@@ -80,15 +81,15 @@ namespace bzPSD
                     if (layer.SortedChannels.ContainsKey(-2))
                     {
                         int maskAlpha = GetColor(layer.MaskData, x, y);
-                        int oldAlpha = pixelColor.A;
+                        int oldAlpha = (int)((Vector4)pixelColor).W;
 
                         int newAlpha = oldAlpha * maskAlpha / 255;
-                        pixelColor = Color.FromArgb(newAlpha, pixelColor);
+                        pixelColor = pixelColor.WithAlpha(newAlpha);
                     }
 
                     lock (bitmap)
                     {
-                        bitmap.SetPixel(x, y, pixelColor);
+                        bitmap[x, y] = pixelColor;
                     }
                 }
             });
@@ -102,7 +103,7 @@ namespace bzPSD
 
             if (mask.Rect.Width == 0 || mask.Rect.Height == 0) return null;
 
-            Bitmap bitmap = new Bitmap(mask.Rect.Width, mask.Rect.Height, PixelFormat.Format32bppArgb);
+            Bitmap bitmap = new Bitmap(mask.Rect.Width, mask.Rect.Height);
 
             Parallel.For(0, layer.Rect.Height, y =>
             {
@@ -112,11 +113,11 @@ namespace bzPSD
                 {
                     int pos = rowIndex + x;
 
-                    Color pixelColor = Color.FromArgb(mask.ImageData[pos], mask.ImageData[pos], mask.ImageData[pos]);
+                    Color pixelColor = Color.FromRgb(mask.ImageData[pos], mask.ImageData[pos], mask.ImageData[pos]);
 
                     lock (bitmap)
                     {
-                        bitmap.SetPixel(x, y, pixelColor);
+                        bitmap[x, y] = pixelColor;
                     }
                 }
             });
@@ -141,7 +142,7 @@ namespace bzPSD
             switch (psdFile.ColorMode)
             {
                 case ColorMode.RGB:
-                    c = Color.FromArgb(alpha, red, green, blue);
+                    c = Color.FromRgba(red, green, blue, alpha);
                     break;
                 case ColorMode.CMYK:
                     c = CMYKToRGB(red, green, blue, alpha);
@@ -151,11 +152,11 @@ namespace bzPSD
                     break;
                 case ColorMode.Grayscale:
                 case ColorMode.Duotone:
-                    c = Color.FromArgb(red, red, red);
+                    c = Color.FromRgb(red, red, red);
                     break;
                 case ColorMode.Indexed:
                     int index = red;
-                    c = Color.FromArgb(psdFile.ColorModeData[index], psdFile.ColorModeData[index + 256], psdFile.ColorModeData[index + 2 * 256]);
+                    c = Color.FromRgb(psdFile.ColorModeData[index], psdFile.ColorModeData[index + 256], psdFile.ColorModeData[index + 2 * 256]);
                     break;
                 case ColorMode.Lab:
                     c = LabToRGB(red, green, blue);
@@ -172,7 +173,7 @@ namespace bzPSD
             switch (layer.PsdFile.ColorMode)
             {
                 case ColorMode.RGB:
-                    c = Color.FromArgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[1].ImageData[pos], layer.SortedChannels[2].ImageData[pos]);
+                    c = Color.FromRgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[1].ImageData[pos], layer.SortedChannels[2].ImageData[pos]);
                     break;
                 case ColorMode.CMYK:
                     c = CMYKToRGB(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[1].ImageData[pos], layer.SortedChannels[2].ImageData[pos], layer.SortedChannels[3].ImageData[pos]);
@@ -182,12 +183,12 @@ namespace bzPSD
                     break;
                 case ColorMode.Grayscale:
                 case ColorMode.Duotone:
-                    c = Color.FromArgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos]);
+                    c = Color.FromRgb(layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos], layer.SortedChannels[0].ImageData[pos]);
                     break;
                 case ColorMode.Indexed:
                     {
                         int index = layer.SortedChannels[0].ImageData[pos];
-                        c = Color.FromArgb(layer.PsdFile.ColorModeData[index], layer.PsdFile.ColorModeData[index + 256], layer.PsdFile.ColorModeData[index + 2 * 256]);
+                        c = Color.FromRgb(layer.PsdFile.ColorModeData[index], layer.PsdFile.ColorModeData[index + 256], layer.PsdFile.ColorModeData[index + 2 * 256]);
                     }
                     break;
                 case ColorMode.Lab:
@@ -197,7 +198,7 @@ namespace bzPSD
                     break;
             }
 
-            if (layer.SortedChannels.ContainsKey(-1)) c = Color.FromArgb(layer.SortedChannels[-1].ImageData[pos], c);
+            if (layer.SortedChannels.ContainsKey(-1)) c = c.WithAlpha(layer.SortedChannels[-1].ImageData[pos]);
 
             return c;
         }
@@ -292,7 +293,7 @@ namespace bzPSD
             nBlue = nBlue > 0 ? nBlue : 0;
             nBlue = nBlue < 255 ? nBlue : 255;
 
-            return Color.FromArgb(nRed, nGreen, nBlue);
+            return Color.FromRgb((byte)nRed, (byte)nGreen, (byte)nBlue);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -335,7 +336,7 @@ namespace bzPSD
             nBlue = nBlue > 0 ? nBlue : 0;
             nBlue = nBlue < 255 ? nBlue : 255;
 
-            return Color.FromArgb(nRed, nGreen, nBlue);
+            return Color.FromRgb((byte)nRed, (byte)nGreen, (byte)nBlue);
         }
     }
 }
